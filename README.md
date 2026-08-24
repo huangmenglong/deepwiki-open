@@ -2,13 +2,21 @@
 
 <img width="1536" height="1024" alt="grok-wiki" src="https://github.com/user-attachments/assets/1f569784-d1c8-479d-9a99-d3ef4ad3ec84" />
 
-**DeepWiki** is my own implementation attempt of DeepWiki, automatically creates beautiful, interactive wikis for any GitHub, GitLab, or BitBucket repository! Just enter a repo name, and DeepWiki will:
+**DeepWiki** is my own implementation attempt of DeepWiki, automatically creates beautiful, interactive wikis for any GitHub, GitLab, BitBucket, or **SVN** repository! Just enter a repo name, and DeepWiki will:
 
 1. Analyze the code structure
 2. Generate comprehensive documentation
 3. Create visual diagrams to explain how everything works
 4. Organize it all into an easy-to-navigate wiki
 5. Generate codemap for code-centric guided tours
+
+> **SVN support** — pass an `svn://` / `svn+ssh://` URL (or an http(s) SVN address and
+> pick the **SVN** platform). Credentials may be entered as `username:password`.
+>
+> **Fully intranet deployment** — point `OPENAI_BASE_URL` at your internal
+> OpenAI-compatible AI/embedding gateway and everything runs with zero internet
+> access. See [INTRANET_DEPLOYMENT.md](./INTRANET_DEPLOYMENT.md) for offline image
+> transfer (`docker save`/`docker load`) and one-command startup.
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/sheing)
 [![Tip in Crypto](https://tip.md/badge.svg)](https://tip.md/sng-asyncfunc)

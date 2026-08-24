@@ -15,7 +15,7 @@ from dataclasses import dataclass
 class RepoUrlContext:
     """Everything needed to turn a repo-relative path into a web URL."""
 
-    type: str  # 'local' | 'github' | 'gitlab' | 'bitbucket'
+    type: str  # 'local' | 'github' | 'gitlab' | 'bitbucket' | 'svn'
     repo_url: str | None
     default_branch: str
 

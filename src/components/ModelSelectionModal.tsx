@@ -37,7 +37,7 @@ interface ModelSelectionModalProps {
 
   // Token input for refresh
   showTokenInput?: boolean;
-  repositoryType?: 'github' | 'gitlab' | 'bitbucket';
+  repositoryType?: 'gitlab' | 'svn';
   // Authentication
   authRequired?: boolean;
   authCode?: string;
@@ -74,7 +74,7 @@ export default function ModelSelectionModal({
   isAuthLoading,
   showWikiType = true,
   showTokenInput = false,
-  repositoryType = 'github',
+  repositoryType = 'gitlab',
 }: ModelSelectionModalProps) {
   const { messages: t } = useLanguage();
 
@@ -91,7 +91,7 @@ export default function ModelSelectionModal({
 
   // Token input state
   const [localAccessToken, setLocalAccessToken] = useState('');
-  const [localSelectedPlatform, setLocalSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket'>(repositoryType);
+  const [localSelectedPlatform, setLocalSelectedPlatform] = useState<'gitlab' | 'svn'>(repositoryType);
   const [showTokenSection, setShowTokenSection] = useState(showTokenInput);
 
   // Reset local state when modal is opened

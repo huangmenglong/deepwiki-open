@@ -1,0 +1,39 @@
+现状分析
+项目的仓库类型在 
+base.pyL6 中被硬编码为字面量：
+
+RepoType = Literal["local", "github", "gitlab", "bitbucket"]
+核心克隆逻辑在 
+repository.pyL7 中，整个类基于 Python 的 git 库（GitRepo），
+download()L191-L216 方法只分支处理 github / gitlab / bitbucket 三种类型，其他直接抛 NotImplementedError。
+
+前端 
+page.tsxL137 也把平台选择限定为 'github' | 'gitlab' | 'bitbucket'。
+
+要支持 SVN 需要改动的地方
+层级	文件	改动内容	复杂度
+Schema	
+base.pyL6	RepoType 添加 "svn"	🟢 一行
+后端核心	
+repository.pyL38-L118	新增 _checkout_from_svn() 函数，用 subprocess.run(["svn", "checkout", ...]) 代替 GitRepo.clone_from()；在 
+download()L205-L214 增加 elif self.repo_type == "svn" 分支；更新异常处理和仓库名提取逻辑	🟡 中等
+前端 UI	
+page.tsxL137	selectedPlatform 类型加 'svn'，增加一个 SVN 选项按钮	🟢 简单
+前端解析	
+page.tsxL177-L200	parseRepositoryInput 识别 SVN URL 格式	🟢 简单
+好消息：不需要改的部分
+以下模块完全不需要动，因为它们只操作本地文件系统，与版本控制系统无关：
+
+RAG 索引管道（
+pipeline.pyL73-L160）— 用 iterate_files 遍历本地目录，不关心文件从哪来
+Wiki 生成 — 基于已索引的文件内容
+Chat / Deep Research — 基于向量检索结果
+Codemap — 基于本地文件解析
+总体评估
+中等复杂度。 不算特别难，但也不是加个字符串那么简单。主要工作量集中在 repository.py——你需要：
+
+用 subprocess 调用 svn checkout 替代 GitRepo.clone_from()
+处理 SVN 的认证方式（用户名/密码 vs token）
+SVN 没有 --depth=1 这种浅克隆概念，对应的是 --depth empty + --set-depth infinity，或者直接全量 checkout（大仓库会慢）
+错误处理要从 GitCommandError 扩展到通用的 subprocess.CalledProcessError
+大约 50-80 行代码 的改动量，集中在后端。前端只是加个选项。

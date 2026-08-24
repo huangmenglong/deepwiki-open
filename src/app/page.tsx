@@ -93,7 +93,11 @@ export default function Home() {
           setModel(config.model || '');
           setIsCustomModel(config.isCustomModel || false);
           setCustomModel(config.customModel || '');
-          setSelectedPlatform(config.selectedPlatform || 'github');
+          // Intranet frontend only offers GitLab/SVN; normalize any stale
+          // cached github/bitbucket selection back to gitlab.
+          setSelectedPlatform(['gitlab', 'svn'].includes(config.selectedPlatform)
+            ? config.selectedPlatform
+            : 'gitlab');
           setExcludedDirs(config.excludedDirs || '');
           setExcludedFiles(config.excludedFiles || '');
           setIncludedDirs(config.includedDirs || '');
@@ -111,6 +115,10 @@ export default function Home() {
     if (newRepoUrl.trim() === "") {
       // Optionally reset fields if input is cleared
     } else {
+        // Auto-select the SVN platform when an svn:// URL is entered.
+        if (/^svn(?:\+ssh)?:\/\/.+/i.test(newRepoUrl.trim())) {
+          setSelectedPlatform('svn');
+        }
         loadConfigFromCache(newRepoUrl);
     }
   };
@@ -134,7 +142,7 @@ export default function Home() {
   const [excludedFiles, setExcludedFiles] = useState('');
   const [includedDirs, setIncludedDirs] = useState('');
   const [includedFiles, setIncludedFiles] = useState('');
-  const [selectedPlatform, setSelectedPlatform] = useState<'github' | 'gitlab' | 'bitbucket'>('github');
+  const [selectedPlatform, setSelectedPlatform] = useState<'gitlab' | 'svn'>('gitlab');
   const [accessToken, setAccessToken] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -189,6 +197,9 @@ export default function Home() {
     // Handle Windows absolute paths (e.g., C:\path\to\folder)
     const windowsPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
     const customGitRegex = /^(?:https?:\/\/)?([^\/]+)\/(.+?)\/([^\/]+)(?:\.git)?\/?$/;
+    // SVN URLs use the svn:// or svn+ssh:// schemes (http(s) SVN repos are
+    // handled by the generic URL branch below + the SVN platform selector).
+    const svnUrlRegex = /^svn(?:\+ssh)?:\/\/.+$/i;
 
     if (windowsPathRegex.test(input)) {
       type = 'local';
@@ -202,6 +213,17 @@ export default function Home() {
       localPath = input;
       repo = input.split('/').filter(Boolean).pop() || 'local-repo';
       owner = 'local';
+    }
+    else if (svnUrlRegex.test(input)) {
+      type = 'svn';
+      // svn://host/path/to/project/trunk -> owner = second-to-last path segment,
+      // repo = last segment. Enough to build a stable wiki URL for the route.
+      const withoutScheme = input.replace(/^svn(?:\+ssh)?:\/\//i, '').split(/[?#]/)[0];
+      const parts = withoutScheme.split('/').filter(Boolean);
+      const pathParts = parts.slice(1); // parts[0] is the host
+      repo = pathParts[pathParts.length - 1] || parts[parts.length - 1] || 'svn-repo';
+      owner = pathParts[pathParts.length - 2] || 'svn';
+      fullPath = withoutScheme;
     }
     else if (customGitRegex.test(input)) {
       // Detect repository type based on domain
@@ -255,7 +277,7 @@ export default function Home() {
     const parsedRepo = parseRepositoryInput(repositoryInput);
 
     if (!parsedRepo) {
-      setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
+      setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket/SVN URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
       return;
     }
 
@@ -336,7 +358,7 @@ export default function Home() {
     const parsedRepo = parseRepositoryInput(repositoryInput);
 
     if (!parsedRepo) {
-      setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
+      setError('Invalid repository format. Use "owner/repo", GitHub/GitLab/BitBucket/SVN URL, or a local folder path like "/path/to/folder" or "C:\\path\\to\\folder".');
       setIsSubmitting(false);
       return;
     }
@@ -348,8 +370,12 @@ export default function Home() {
     if (accessToken) {
       params.append('token', accessToken);
     }
-    // Always include the type parameter
-    params.append('type', (type == 'local' ? type : selectedPlatform) || 'github');
+    // Always include the type parameter. Known parsed types (local/github/
+    // gitlab/bitbucket/svn) win; only ambiguous git-like URLs fall back to the
+    // platform chosen in the modal (gitlab or svn for the intranet build).
+    const knownTypes = ['local', 'github', 'gitlab', 'bitbucket', 'svn'];
+    const effectiveType = knownTypes.includes(type) ? type : (selectedPlatform || 'gitlab');
+    params.append('type', effectiveType);
     // Add local path if it exists
     if (localPath) {
       params.append('local_path', encodeURIComponent(localPath));
@@ -421,7 +447,7 @@ export default function Home() {
                   type="text"
                   value={repositoryInput}
                   onChange={handleRepositoryInputChange}
-                  placeholder={t('form.repoPlaceholder') || "owner/repo, GitHub/GitLab/BitBucket URL, or local folder path"}
+                  placeholder={t('form.repoPlaceholder') || "owner/repo, GitHub/GitLab/BitBucket/SVN URL, or local folder path"}
                   className="input-japanese block w-full pl-10 pr-3 py-2.5 border-[var(--border-color)] rounded-lg bg-transparent text-[var(--foreground)] focus:outline-none focus:border-[var(--accent-primary)]"
                 />
                 {error && (
@@ -558,6 +584,10 @@ export default function Home() {
               <div
                 className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
               >https://bitbucket.org/atlassian/atlaskit
+              </div>
+              <div
+                className="bg-[var(--background)]/70 p-3 rounded border border-[var(--border-color)] font-mono overflow-x-hidden whitespace-nowrap"
+              >svn://svn.example.com/svn/project/trunk
               </div>
             </div>
           </div>

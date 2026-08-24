@@ -185,6 +185,31 @@ def load_embedder_config():
             if class_name in CLIENT_CLASSES:
                 embedder_config[key]["model_client"] = CLIENT_CLASSES[class_name]
 
+    # Intranet / OpenAI-compatible embedding overrides. When OPENAI_BASE_URL (or
+    # the dedicated DEEPWIKI_EMBED_BASE_URL) is set, point the default OpenAI
+    # embedder at the internal endpoint and let operators override the embedding
+    # model name via DEEPWIKI_EMBED_MODEL. This is what makes "fully intranet"
+    # deployments work without editing JSON.
+    if "embedder" in embedder_config:
+        default_embedder = embedder_config["embedder"]
+        if default_embedder.get("client_class") == "OpenAIClient":
+            init_kwargs = {}
+            embed_base_url = os.environ.get("DEEPWIKI_EMBED_BASE_URL") or os.environ.get(
+                "OPENAI_BASE_URL"
+            )
+            embed_api_key = os.environ.get("DEEPWIKI_EMBED_API_KEY") or os.environ.get(
+                "OPENAI_API_KEY"
+            )
+            if embed_base_url:
+                init_kwargs["base_url"] = embed_base_url
+            if embed_api_key:
+                init_kwargs["api_key"] = embed_api_key
+            if init_kwargs:
+                default_embedder["initialize_kwargs"] = init_kwargs
+            embed_model = os.environ.get("DEEPWIKI_EMBED_MODEL")
+            if embed_model:
+                default_embedder.setdefault("model_kwargs", {})["model"] = embed_model
+
     return embedder_config
 
 
@@ -334,7 +359,12 @@ lang_config = load_lang_config()
 
 # Update configuration
 if generator_config:
-    configs["default_provider"] = generator_config.get("default_provider", "google")
+    # DEEPWIKI_DEFAULT_PROVIDER lets intranet deployments choose the provider
+    # (e.g. "openai" pointing at an internal gateway) without editing JSON.
+    configs["default_provider"] = (
+        os.environ.get("DEEPWIKI_DEFAULT_PROVIDER")
+        or generator_config.get("default_provider", "google")
+    )
     configs["providers"] = generator_config.get("providers", {})
 
 # Update embedder configuration
@@ -384,9 +414,13 @@ def get_model_config(provider="google", model=None):
     if not model_client:
         raise ValueError(f"Model client not specified for provider '{provider}'")
 
-    # If model not provided, use default model for the provider
+    # If model not provided, use default model for the provider.
+    # DEEPWIKI_DEFAULT_MODEL lets intranet deployments pin the model name
+    # (e.g. an internal model id) without editing generator.json.
     if not model:
-        model = provider_config.get("default_model")
+        model = os.environ.get("DEEPWIKI_DEFAULT_MODEL") or provider_config.get(
+            "default_model"
+        )
         if not model:
             raise ValueError(f"No default model specified for provider '{provider}'")
 

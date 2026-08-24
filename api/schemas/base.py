@@ -3,7 +3,7 @@ from urllib.parse import unquote
 
 from pydantic import BaseModel, Field, field_validator
 
-RepoType = Literal["local", "github", "gitlab", "bitbucket"]
+RepoType = Literal["local", "github", "gitlab", "bitbucket", "svn"]
 
 
 class RepoRequestBase(BaseModel):

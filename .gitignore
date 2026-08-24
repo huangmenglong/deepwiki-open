@@ -55,6 +55,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -67,3 +68,9 @@ next-env.d.ts
 
 # ignore adding self-signed certs
 certs/
+
+# offline docker image transfer artifact
+deepwiki-open.tar
+
+# standalone install packages (built locally, not committed)
+dist/

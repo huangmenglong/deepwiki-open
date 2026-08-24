@@ -1,5 +1,8 @@
 services:
   deepwiki:
+    # Use the pre-built image (docker load deepwiki-open.tar) on intranet hosts.
+    # If the image is absent, `docker compose up` will build it from Dockerfile.
+    image: deepwiki-open:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,9 +17,17 @@ services:
       - SERVER_BASE_URL=http://localhost:${PORT:-8001}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - LOG_FILE_PATH=${LOG_FILE_PATH:-api/logs/application.log}
+      # Optional: trust a corporate/intranet CA bundle for internal TLS endpoints
+      # (AI/embed gateway, SVN over https). Put your CA at certs/ca-certificates.crt
+      # and uncomment the certs volume below together with these three vars:
+      # - NODE_EXTRA_CA_CERTS=/certs/ca-certificates.crt
+      # - SSL_CERT_FILE=/certs/ca-certificates.crt
+      # - REQUESTS_CA_BUNDLE=/certs/ca-certificates.crt
     volumes:
       - ~/.adalflow:/root/.adalflow      # Persist repository and embedding data
       - ./api/logs:/app/api/logs          # Persist log files across container restarts
+      # Optional (uncomment together with the three env vars above):
+      # - ./certs:/certs:ro
     # Resource limits for docker-compose up (not Swarm mode)
     mem_limit: 6g
     mem_reservation: 2g

@@ -19,7 +19,7 @@ import {
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FaBitbucket, FaBookOpen, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes } from 'react-icons/fa';
+import { FaBitbucket, FaBookOpen, FaCode, FaComments, FaDownload, FaExclamationTriangle, FaFileExport, FaFolder, FaGithub, FaGitlab, FaHome, FaSync, FaTimes } from 'react-icons/fa';
 // Define the WikiSection and WikiStructure types directly in this file
 // since the imported types don't have the sections and rootSections properties
 interface WikiSection {
@@ -972,8 +972,10 @@ export default function RepoWikiPage() {
                       <FaGithub className="mr-2" />
                     ) : effectiveRepoInfo.type === 'gitlab' ? (
                       <FaGitlab className="mr-2" />
-                    ) : (
+                    ) : effectiveRepoInfo.type === 'bitbucket' ? (
                       <FaBitbucket className="mr-2" />
+                    ) : (
+                      <FaCode className="mr-2" />
                     )}
                     <a
                       href={effectiveRepoInfo.repoUrl ?? ''}
@@ -1207,7 +1209,7 @@ export default function RepoWikiPage() {
         onApply={confirmRefresh}
         showWikiType={true}
         showTokenInput={effectiveRepoInfo.type !== 'local' && !currentToken} // Show token input if not local and no current token
-        repositoryType={effectiveRepoInfo.type as 'github' | 'gitlab' | 'bitbucket'}
+        repositoryType={effectiveRepoInfo.type as 'gitlab' | 'svn'}
         authRequired={authRequired}
         authCode={authCode}
         setAuthCode={setAuthCode}

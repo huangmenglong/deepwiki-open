@@ -54,6 +54,29 @@ class TestExtractRepoNameFromUrl:
     @pytest.mark.parametrize(
         "repo_url, name",
         [
+            (
+                "svn://svn.example.com/svn/project/trunk",
+                "svn_example_com_svn_project_trunk",
+            ),
+            (
+                "svn+ssh://svn.example.com/repo/project/tags/v1.0",
+                "svn_example_com_repo_project_tags_v1_0",
+            ),
+            (
+                "https://svn.example.com/svn/project/trunk",
+                "svn_example_com_svn_project_trunk",
+            ),
+        ],
+    )
+    def test_extract_repo_name_svn_urls(self, repo_url, name):
+        """Test repository name extraction from SVN URLs (full path, no "trunk" collisions)"""
+        repo = Repo(repo_url=repo_url, repo_type="svn")
+        assert repo.name == name
+        assert not repo.is_local
+
+    @pytest.mark.parametrize(
+        "repo_url, name",
+        [
             ("/home/user/projects/my-repo", "my-repo"),
             ("/var/repos/project.git", "project.git"),
             ("my-repo", "my-repo"),

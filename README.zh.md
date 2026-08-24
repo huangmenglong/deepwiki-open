@@ -2,13 +2,17 @@
 
 ![DeepWiki 横幅](screenshots/Deepwiki.png)
 
-**DeepWiki**可以为任何GitHub、GitLab或BitBucket代码仓库自动创建美观、交互式的Wiki！只需输入仓库名称，DeepWiki将：
+**DeepWiki**可以为任何GitHub、GitLab、BitBucket或**SVN**代码仓库自动创建美观、交互式的Wiki！只需输入仓库名称，DeepWiki将：
 
 1. 分析代码结构
 2. 生成全面的文档
 3. 创建可视化图表解释一切如何运作
 4. 将所有内容整理成易于导航的Wiki
 5. 生成代码地图，提供以代码为中心的引导式导览
+
+> **SVN 支持** —— 输入 `svn://` / `svn+ssh://` 地址即可（http(s) 方式的 SVN 请在弹窗中选择 **SVN** 平台），凭据可填 `用户名:密码`。
+>
+> **完全内网部署** —— 将 `OPENAI_BASE_URL` 指向内部 OpenAI 兼容的 AI/嵌入网关即可零外网运行。离线镜像传输（`docker save`/`docker load`）与一键启动脚本详见 [INTRANET_DEPLOYMENT.md](./INTRANET_DEPLOYMENT.md)。
 
 [!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/sheing)
 

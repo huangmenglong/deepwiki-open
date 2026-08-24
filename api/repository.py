@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 from functools import wraps
 from collections.abc import Callable
@@ -118,6 +119,47 @@ def _clone_from_bitbucket(
     return GitRepo.clone_from(url=remote_url, to_path=local_path, **kwargs)
 
 
+@_exception_cleanup
+def _checkout_from_svn(
+    remote_url: str,
+    local_path: str,
+    *,
+    access_token: str | None = None,
+    **kwargs,
+) -> None:
+    """Checkout a Subversion (SVN) repository using the system ``svn`` CLI.
+
+    SVN has no shallow-clone equivalent to git's ``--depth=1``, so this performs
+    a full checkout. ``--non-interactive`` + ``--no-auth-cache`` keeps the
+    process from hanging on credential prompts inside a headless/container env.
+
+    SVN authenticates with a username/password rather than a PAT, so we reuse
+    the request ``token`` field flexibly:
+
+    * ``username:password`` -> split into SVN credentials
+    * a bare password -> used with ``SVN_USERNAME`` (or a username embedded in
+      the URL, e.g. ``svn+ssh://user@host/...``)
+    """
+    cmd = ["svn", "checkout", "--non-interactive", "--no-auth-cache"]
+
+    username: str | None = None
+    password: str | None = None
+    if access_token:
+        if ":" in access_token and not access_token.startswith(("http", "svn")):
+            username, password = access_token.split(":", 1)
+        else:
+            password = access_token
+    username = username or os.environ.get("SVN_USERNAME")
+    password = password or os.environ.get("SVN_PASSWORD")
+    if username:
+        cmd += ["--username", username]
+    if password:
+        cmd += ["--password", password]
+
+    cmd += [remote_url, local_path]
+    subprocess.run(cmd, check=True, capture_output=True, text=True)
+
+
 def _path_is_url(path: str) -> bool:
     """Check if the given path is a URL, or local path string.
 
@@ -132,7 +174,13 @@ def _path_is_url(path: str) -> bool:
     """
     try:
         result = urlparse(path)
-        return result.scheme in {"http", "https", "ftp"} and bool(result.netloc)
+        return result.scheme in {
+            "http",
+            "https",
+            "ftp",
+            "svn",
+            "svn+ssh",
+        } and bool(result.netloc)
     except Exception:
         return False
 
@@ -174,7 +222,18 @@ class Repo:
     def _extract_repo_name(repo_url: str, repo_type: str | None) -> str:
         if _path_is_url(repo_url):
             url_parts = repo_url.rstrip("/").split("/")
-            if repo_type in ["github", "gitlab", "bitbucket"] and len(url_parts) >= 5:
+            if repo_type == "svn":
+                # SVN repos don't follow the owner/repo convention and often
+                # point at a subdirectory (e.g. .../project/trunk). Name the
+                # checkout after the full host+path so two projects never
+                # collide on a generic segment like "trunk".
+                parsed = urlparse(repo_url)
+                segments: list[str] = []
+                if parsed.hostname:
+                    segments.extend(parsed.hostname.split("."))
+                segments.extend(seg for seg in parsed.path.split("/") if seg)
+                repo_name = "_".join(segments).replace(".git", "")
+            elif repo_type in ["github", "gitlab", "bitbucket"] and len(url_parts) >= 5:
                 # GitHub URL format: https://github.com/owner/repo
                 # GitLab URL format: https://gitlab.com/owner/repo or https://gitlab.com/group/subgroup/repo
                 # Bitbucket URL format: https://bitbucket.org/owner/repo
@@ -192,28 +251,37 @@ class Repo:
         if force or (not self.downloaded and not self.is_local):
             os.makedirs(self.save_path, exist_ok=True)
 
-            if not GIT_OK:
-                raise RuntimeError("Missing `git` in current environment")
-
-            kwargs = {
-                "remote_url": self.repo_url,
-                "local_path": self.save_path,
-                "access_token": self.access_token,
-                "multi_options": ["--depth=1", "--single-branch"],
-            }
-
-            if self.repo_type == "github":
-                _clone_from_github(**kwargs)
-
-            elif self.repo_type == "gitlab":
-                _clone_from_gitlab(**kwargs)
-
-            elif self.repo_type == "bitbucket":
-                _clone_from_bitbucket(**kwargs)
+            if self.repo_type == "svn":
+                if shutil.which("svn") is None:
+                    raise RuntimeError("Missing `svn` in current environment")
+                _checkout_from_svn(
+                    remote_url=self.repo_url,
+                    local_path=self.save_path,
+                    access_token=self.access_token,
+                )
             else:
-                raise NotImplementedError(f"Unknown repo type: {self.repo_type}")
+                if not GIT_OK:
+                    raise RuntimeError("Missing `git` in current environment")
 
-            logger.info("Repository %s cloned successfully", self.name)
+                kwargs = {
+                    "remote_url": self.repo_url,
+                    "local_path": self.save_path,
+                    "access_token": self.access_token,
+                    "multi_options": ["--depth=1", "--single-branch"],
+                }
+
+                if self.repo_type == "github":
+                    _clone_from_github(**kwargs)
+
+                elif self.repo_type == "gitlab":
+                    _clone_from_gitlab(**kwargs)
+
+                elif self.repo_type == "bitbucket":
+                    _clone_from_bitbucket(**kwargs)
+                else:
+                    raise NotImplementedError(f"Unknown repo type: {self.repo_type}")
+
+            logger.info("Repository %s downloaded successfully", self.name)
 
     @property
     def save_path(self) -> str:
