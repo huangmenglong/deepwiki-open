@@ -5,7 +5,6 @@ Any patches and additional clients could be applied or imported in this module.
 from adalflow.components.model_client import (
     AzureAIClient,
     GoogleGenAIClient,
-    OpenAIClient,
 )
 
 from .anthropic import AnthropicBedrockClient
@@ -14,6 +13,7 @@ from .dashscope import DashscopeClient
 from .google_embedder import GoogleEmbedderClient
 from .litellm import LiteLLMClient
 from .ollama import OllamaClient
+from .openai import OpenAIClient
 from .openrouter import OpenRouterClient
 
 __all__ = [

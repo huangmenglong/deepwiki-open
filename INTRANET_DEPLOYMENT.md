@@ -74,12 +74,16 @@ cp .env.example .env
 | `DEEPWIKI_EMBED_BASE_URL` | （可选）独立嵌入端点 | `http://192.168.1.11:8081/v1` |
 | `DEEPWIKI_EMBED_API_KEY` | （可选）独立嵌入密钥 | `sk-embed` |
 | `DEEPWIKI_EMBED_MODEL` | 内部嵌入模型名 | `text-embedding-v3` |
+| `DEEPWIKI_EMBED_DIMENSIONS` | （可选）嵌入维度，仅当内部 API 支持时设置 | `256` |
+| `DEEPWIKI_EMBED_ENCODING_FORMAT` | （可选）嵌入编码格式，仅当内部 API 支持时设置 | `float` |
 | `SVN_USERNAME` / `SVN_PASSWORD` | （可选）私有 SVN 默认凭据 | `svnuser` / `svnpass` |
 | `DEEPWIKI_AUTH_MODE` / `DEEPWIKI_AUTH_CODE` | （可选）生成鉴权 | `true` / `change-me` |
 
-> 说明：生成（chat/wiki）通过 OpenAI SDK 读取 `OPENAI_BASE_URL`；
-> 嵌入通过代码注入 `initialize_kwargs` 使用同一地址（或独立嵌入端点），
-> 均无需修改任何 JSON 配置文件。
+> 说明：生成（chat/wiki）与嵌入都通过 `OPENAI_BASE_URL` 指向内部网关，无需修改任何
+> JSON 配置。设置 `DEEPWIKI_EMBED_MODEL` 时，会**自动移除** OpenAI 专属的
+> `dimensions`/`encoding_format` 参数（多数非 OpenAI 嵌入接口不接受这两个参数）；
+> 若你的内部接口确实支持，可显式用 `DEEPWIKI_EMBED_DIMENSIONS` /
+> `DEEPWIKI_EMBED_ENCODING_FORMAT` 重新开启。
 
 ## 4. 启动
 

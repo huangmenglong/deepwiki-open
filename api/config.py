@@ -185,30 +185,43 @@ def load_embedder_config():
             if class_name in CLIENT_CLASSES:
                 embedder_config[key]["model_client"] = CLIENT_CLASSES[class_name]
 
-    # Intranet / OpenAI-compatible embedding overrides. When OPENAI_BASE_URL (or
-    # the dedicated DEEPWIKI_EMBED_BASE_URL) is set, point the default OpenAI
-    # embedder at the internal endpoint and let operators override the embedding
-    # model name via DEEPWIKI_EMBED_MODEL. This is what makes "fully intranet"
-    # deployments work without editing JSON.
+    # Intranet / OpenAI-compatible embedding overrides. The custom OpenAIClient
+    # (api.clients.openai) reads OPENAI_BASE_URL / OPENAI_API_KEY from the env,
+    # so a plain `OPENAI_BASE_URL` already routes embeddings to the internal
+    # gateway. Here we additionally support:
+    #   * a dedicated embedding endpoint: DEEPWIKI_EMBED_BASE_URL / _API_KEY
+    #   * a custom embedding model name: DEEPWIKI_EMBED_MODEL
+    #     (drops OpenAI-specific `dimensions`/`encoding_format` unless re-set,
+    #     since most non-OpenAI embedding APIs reject those params)
     if "embedder" in embedder_config:
         default_embedder = embedder_config["embedder"]
         if default_embedder.get("client_class") == "OpenAIClient":
-            init_kwargs = {}
-            embed_base_url = os.environ.get("DEEPWIKI_EMBED_BASE_URL") or os.environ.get(
-                "OPENAI_BASE_URL"
-            )
-            embed_api_key = os.environ.get("DEEPWIKI_EMBED_API_KEY") or os.environ.get(
-                "OPENAI_API_KEY"
-            )
-            if embed_base_url:
-                init_kwargs["base_url"] = embed_base_url
-            if embed_api_key:
-                init_kwargs["api_key"] = embed_api_key
-            if init_kwargs:
+            embed_base_url = os.environ.get("DEEPWIKI_EMBED_BASE_URL")
+            embed_api_key = os.environ.get("DEEPWIKI_EMBED_API_KEY")
+            if embed_base_url or embed_api_key:
+                init_kwargs = {}
+                if embed_base_url:
+                    init_kwargs["base_url"] = embed_base_url
+                if embed_api_key:
+                    init_kwargs["api_key"] = embed_api_key
                 default_embedder["initialize_kwargs"] = init_kwargs
+
             embed_model = os.environ.get("DEEPWIKI_EMBED_MODEL")
             if embed_model:
-                default_embedder.setdefault("model_kwargs", {})["model"] = embed_model
+                model_kwargs = default_embedder.setdefault("model_kwargs", {})
+                model_kwargs["model"] = embed_model
+                if os.environ.get("DEEPWIKI_EMBED_DIMENSIONS"):
+                    model_kwargs["dimensions"] = int(
+                        os.environ["DEEPWIKI_EMBED_DIMENSIONS"]
+                    )
+                else:
+                    model_kwargs.pop("dimensions", None)
+                if os.environ.get("DEEPWIKI_EMBED_ENCODING_FORMAT"):
+                    model_kwargs["encoding_format"] = os.environ[
+                        "DEEPWIKI_EMBED_ENCODING_FORMAT"
+                    ]
+                else:
+                    model_kwargs.pop("encoding_format", None)
 
     return embedder_config
 
