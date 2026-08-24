@@ -131,11 +131,25 @@ docker compose up -d
 
 > SVN 无浅克隆概念，默认为全量 checkout；大仓库首次生成会较慢。
 
+### 5.2 GitLab 仓库（内网自建 / HTTP 基本认证）
+
+1. 首页输入框填入 GitLab 地址，例如 `http://10.153.120.104/group/repo.git`。
+2. 私有仓库：在配置弹窗展开 “Add Access Tokens”，选择 **GitLab** 平台，凭据支持两种写法：
+   - **`用户名:密码`**（内网自建 GitLab 的 HTTP 基本认证，形如 `alice:secret`）
+   - **仅填 Personal Access Token**（gitlab.com 云，形如 `glpat-xxxx`，走 OAuth2）
+3. 点击 Generate Wiki，其余流程一致。
+
+> 说明：Git 克隆已设为非交互（`GIT_TERMINAL_PROMPT=0`），未提供凭据或凭据错误时，
+> 会直接报 `Authentication failed` 而不是卡在密码提示上。
+
 ## 6. 常见问题
 
 - **生成报连接错误**：确认 `.env` 的 `OPENAI_BASE_URL` 可从服务器访问（curl 测试）。
 - **嵌入维度不一致报错**：确认 `DEEPWIKI_EMBED_MODEL` 与网关实际模型一致，
   且各分块返回维度相同。
+- **GitLab 克隆报 `could not read Username ... No such device or address`**：仓库需要
+  认证但未提供凭据。请在 “Add Access Tokens” 中选 **GitLab** 并填入 `用户名:密码`
+  （内网基本认证）或 PAT（gitlab.com）。
 - **SVN 提示需要认证/卡住**：使用 `--non-interactive` 已禁用交互提示，
   请在 `token` 中提供 `username:password`，或设置 `SVN_USERNAME`/`SVN_PASSWORD`。
 - **镜像里没有 svn 命令**：重新用最新代码构建镜像（Dockerfile 已安装 `subversion`）。

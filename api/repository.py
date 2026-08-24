@@ -13,6 +13,12 @@ from api.utils import deepwiki_root
 logger = get_logger(__name__)
 
 
+# Never let git prompt interactively for credentials. In a headless container
+# there is no /dev/tty, so a credential prompt would fail with the confusing
+# "could not read Username for '<url>': No such device or address" instead of a
+# clear auth error. With this set, git fails fast with "Authentication failed".
+os.environ.setdefault("GIT_TERMINAL_PROMPT", "0")
+
 CLONE_REPO_ROOT = os.path.join(deepwiki_root(), "repo")
 
 
@@ -46,12 +52,18 @@ def _clone_from_gitlab(
 ) -> GitRepo:
     if access_token:
         parsed = urlparse(remote_url)
-        access_token = quote(access_token, safe="")
+        if ":" in access_token:
+            # username:password (HTTP basic auth) for self-hosted/internal GitLab.
+            username, password = access_token.split(":", 1)
+            creds = f"{quote(username, safe='')}:{quote(password, safe='')}"
+        else:
+            # OAuth2 personal access token (gitlab.com cloud).
+            creds = f"oauth2:{quote(access_token, safe='')}"
 
         remote_url = urlunparse(
             (
                 parsed.scheme,
-                f"oauth2:{access_token}@{parsed.netloc}",
+                f"{creds}@{parsed.netloc}",
                 parsed.path,
                 "",
                 "",
@@ -71,11 +83,18 @@ def _clone_from_github(
 ) -> GitRepo:
     if access_token:
         parsed = urlparse(remote_url)
+        if ":" in access_token:
+            # username:password (HTTP basic auth) for enterprise/internal GitHub.
+            username, password = access_token.split(":", 1)
+            creds = f"{quote(username, safe='')}:{quote(password, safe='')}"
+        else:
+            # Personal access token used as the username.
+            creds = quote(access_token, safe="")
 
         remote_url = urlunparse(
             (
                 parsed.scheme,
-                f"{access_token}@{parsed.netloc}",
+                f"{creds}@{parsed.netloc}",
                 parsed.path,
                 "",
                 "",
